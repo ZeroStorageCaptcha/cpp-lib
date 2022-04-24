@@ -53,6 +53,7 @@ public:
     ZeroStorageCaptcha();
     static bool validate(const QString& answer, const QString& token);
     static ZeroStorageCaptchaContainer getCaptcha(int length = 5, int difficulty = 3);
+    static void setOnlyNumbersMode(bool enabled = false) { m_onlyNumbers = enabled; }
 
     QString captchaText() const   { return m_captchaText; }
     QString captchaToken() const;
@@ -93,6 +94,8 @@ public:
     void updateCaptcha();
 
 private:
+    static bool m_onlyNumbers;
+
     qreal m_hmod1;
     qreal m_hmod2;
 
@@ -117,4 +120,4 @@ private:
     int m_noisePointSize;
 };
 
-#endif // ZEROSTORAGECAPTCHA_H
+#endif // ZEROSTORAGECAPTCHA_H 
