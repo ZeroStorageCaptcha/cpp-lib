@@ -7,7 +7,7 @@
 #include <QString>
 #include <QTimer>
 #include <QMutex>
-#include <unordered_map>
+#include <QMultiMap>
 #include <openssl/evp.h>
 
 constexpr int KEYSIZE = 32;
@@ -52,13 +52,13 @@ public:
 
 private:
     static QString compact(const QString& str);
-    static void sign(const uint8_t * buf, int len, uint8_t * signature, const uint8_t * privateKey);
+    static void sign(const uint8_t * buf, size_t len, uint8_t * signature, const uint8_t * privateKey);
 
     static void warningLog();
     static void removeOldToken(const QString& oldPrevToken);
     static QMutex m_usedTokensMtx;
-    static std::unordered_multimap<QString, QString> m_usedTokens;
-    static size_t m_maximalSizeOfUsedMap;
+    static QMultiMap<QString, QString> m_usedTokens;
+    static int m_maximalSizeOfUsedMap;
     static bool m_caseSensitive;
     static uint8_t m_key[KEYSIZE];
 };

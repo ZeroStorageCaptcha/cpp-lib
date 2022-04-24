@@ -18,9 +18,9 @@ namespace ZeroStorageCaptchaCrypto {
 QTimer* TimeToken::m_updater = nullptr;
 QString TimeToken::m_current;
 QString TimeToken::m_prev;
-size_t KeyHolder::m_maximalSizeOfUsedMap = DEFAULT_SIZE_OF_USED_TOKENS_CACHE;
+int KeyHolder::m_maximalSizeOfUsedMap = DEFAULT_SIZE_OF_USED_TOKENS_CACHE;
 QMutex KeyHolder::m_usedTokensMtx;
-std::unordered_multimap<QString, QString> KeyHolder::m_usedTokens;
+QMultiMap<QString, QString> KeyHolder::m_usedTokens;
 bool KeyHolder::m_caseSensitive = false;
 uint8_t KeyHolder::m_key[KEYSIZE] {0};
 
@@ -52,7 +52,7 @@ QString KeyHolder::captchaSecretLine(const QString &captchaAnswer, bool prevTime
         auto noize = ZeroStorageCaptchaCrypto::random(KEYSIZE);
         for (int i = 0; i < KEYSIZE; ++i)
         {
-            m_key[i] = noize[i];
+            m_key[i] = static_cast<uint8_t>(noize[i]);
         }
     }
 
@@ -93,7 +93,7 @@ bool KeyHolder::validateCaptchaAnswer(const QString &answer, const QString &secr
         }
         if (m_usedTokens.find( timeKey ) == m_usedTokens.end())
         {
-            m_usedTokens.insert({ timeKey, secretLine });
+            m_usedTokens.insert(timeKey, secretLine);
             return true;
         }
     }
@@ -104,7 +104,7 @@ bool KeyHolder::validateCaptchaAnswer(const QString &answer, const QString &secr
 void KeyHolder::removeOldToken(const QString &oldPrevToken)
 {
     QMutexLocker lock (&m_usedTokensMtx);
-    m_usedTokens.erase(oldPrevToken);
+    m_usedTokens.remove(oldPrevToken);
 }
 
 QString KeyHolder::compact(const QString &str)
@@ -124,7 +124,7 @@ QString KeyHolder::compact(const QString &str)
     return result;
 }
 
-void KeyHolder::sign(const uint8_t *buf, int len, uint8_t *signature, const uint8_t *privateKey)
+void KeyHolder::sign(const uint8_t *buf, size_t len, uint8_t *signature, const uint8_t *privateKey)
 {
     auto MDCtx = EVP_MD_CTX_create ();
     auto PKey = EVP_PKEY_new_raw_private_key (EVP_PKEY_ED25519, NULL, privateKey, KEYSIZE);
@@ -151,16 +151,16 @@ QString hash(const QString &str)
     QVector<uint8_t> in;
     for(auto c: str)
     {
-        in.push_back(c.unicode());
+        in.push_back(static_cast<unsigned char>(c.toLatin1()));
     }
 
     QVector<uint8_t> out(SHA256_DIGEST_LENGTH);
-    SHA256(in.data(), in.size(), out.data());
+    SHA256(in.data(), static_cast<size_t>(in.size()), out.data());
 
     QByteArray rawResult;
     for (auto b: out)
     {
-        rawResult.push_back(b);
+        rawResult.push_back(static_cast<char>(b));
     }
 
     return rawResult.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
