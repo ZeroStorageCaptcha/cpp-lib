@@ -28,6 +28,8 @@
 #include <QPainter>
 #include <random>
 
+bool ZeroStorageCaptcha::m_onlyNumbers = false;
+
 ZeroStorageCaptcha::ZeroStorageCaptcha()
 {
     if (not ZeroStorageCaptchaCrypto::TimeToken::inited()) ZeroStorageCaptchaCrypto::TimeToken::init();
@@ -183,7 +185,7 @@ void ZeroStorageCaptcha::setDifficulty(int val)
 {
     if (val < 0 or val > 5)
     {
-        qInfo() << QString(__PRETTY_FUNCTION__) << "Min difficulty is 0, maximal is 5";
+        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "Min difficulty is 0, maximal is 5";
     }
 
     if (val < 1)
@@ -266,7 +268,7 @@ void ZeroStorageCaptcha::generateText(int length)
         length = 5;
     }
 
-    m_captchaText = ZeroStorageCaptchaCrypto::random(length);
+    m_captchaText = ZeroStorageCaptchaCrypto::random(length, m_onlyNumbers);
 
     updateCaptcha();
-}
+} 
