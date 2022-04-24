@@ -43,5 +43,7 @@ To make it impossible to use one captcha twice, the used verification token gets
 where it is stored for several minutes of the life cycle of the token. 
 The token is considered used after the first validation check.
 
+Session signing key generated at every start of app (at first call to ZeroStorageCaptchaCrypto::KeyHolder class).
+
 Check `examples` folder to see C++ interface or if your project not in C++, 
 you can use Zero storage captcha as separate cross-platform local [service](https://github.com/ZeroStorageCaptcha/api-daemon).
