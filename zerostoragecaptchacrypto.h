@@ -6,6 +6,8 @@
 
 #include <QString>
 #include <QTimer>
+#include <QMutex>
+#include <unordered_map>
 #include <openssl/evp.h>
 
 constexpr int KEYSIZE = 32;
@@ -14,7 +16,7 @@ constexpr int SIGSIZE = 64;
 namespace ZeroStorageCaptchaCrypto {
 
 QString hash(const QString& str);
-QByteArray random(int length);
+QByteArray random(int length, bool onlyNumbers = false);
 
 /////////
 
@@ -44,15 +46,23 @@ public:
     static QString captchaSecretLine(const QString& captchaAnswer, bool prevTimeToken = false);
     static bool validateCaptchaAnswer(const QString& answer, const QString& secretLine);
     static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
+    static void setMaxSizeOfUsedTokensCache(size_t size) { m_maximalSizeOfUsedMap = size; }
+
+    friend TimeToken;
 
 private:
     static QString compact(const QString& str);
     static void sign(const uint8_t * buf, int len, uint8_t * signature, const uint8_t * privateKey);
 
+    static void warningLog();
+    static void removeOldToken(const QString& oldPrevToken);
+    static QMutex m_usedTokensMtx;
+    static std::unordered_multimap<QString, QString> m_usedTokens;
+    static size_t m_maximalSizeOfUsedMap;
     static bool m_caseSensitive;
     static uint8_t m_key[KEYSIZE];
 };
 
 } // namespace
 
-#endif // ZEROSTORAGECAPTCHACRYPTO_H
+#endif // ZEROSTORAGECAPTCHACRYPTO_H 
