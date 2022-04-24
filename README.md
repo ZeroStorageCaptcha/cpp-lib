@@ -30,6 +30,9 @@ The token is a cryptographic key to verify the correctness of the answer. It is 
 The time marker (time token) changes every one and a half minutes, due to which the same answer after 
 a few minutes has a completely new token to check the truth.
 
+The user, along with the picture, must provide a verification token, which he will report to the server along with the response to the picture. 
+This can be implemented both through javascript and when generating html pages using the templating method.
+
 The system remembers the previous time token in order to ensure the correct perception of the captcha generated 
 a few seconds before the time token change.
 
