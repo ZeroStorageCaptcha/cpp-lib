@@ -60,12 +60,12 @@ QString KeyHolder::captchaSecretLine(const QString &captchaAnswer, bool prevTime
                                                           (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken()) );
 
     uint8_t signature[SIGSIZE];
-    sign(reinterpret_cast<const uint8_t *>(hashedAnswer.toStdString().c_str()), hashedAnswer.size(), signature, m_key);
+    sign(reinterpret_cast<const uint8_t *>(hashedAnswer.toStdString().c_str()), static_cast<size_t>(hashedAnswer.size()), signature, m_key);
 
     QByteArray rawResultArray;
     for(int i = 0; i < SIGSIZE; ++i)
     {
-        rawResultArray += signature[i];
+        rawResultArray += static_cast<char>(signature[i]);
     }
 
     return compact(rawResultArray.toBase64(QByteArray::Base64Option::Base64UrlEncoding));

@@ -126,10 +126,10 @@ void ZeroStorageCaptcha::updateCaptcha()
         painter.setPen(QPen(Qt::black, m_lineWidth));
         for (int i = 0; i < m_lineCount; i++)
         {
-            int x1 = (static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width();
-            int y1 = (static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height();
-            int x2 = (static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width();
-            int y2 = (static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height();
+            int x1 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width());
+            int y1 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height());
+            int x2 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width());
+            int y2 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height());
             painter.drawLine(x1, y1, x2, y2);
         }
         painter.setPen(Qt::NoPen);
