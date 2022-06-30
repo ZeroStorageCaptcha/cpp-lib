@@ -15,7 +15,6 @@ constexpr int SIGSIZE = 64;
 
 namespace ZeroStorageCaptchaCrypto {
 
-QString hash(const QString& str);
 QByteArray random(int length, bool onlyNumbers = false);
 
 /////////

@@ -9,7 +9,7 @@
 #include <random>
 #include <openssl/sha.h>
 
-constexpr int TIME_TOKEN_SIZE = 10;
+constexpr int TIME_TOKEN_SIZE = 5; // + secs since epoch
 constexpr int DEFAULT_SIZE_OF_USED_TOKENS_CACHE = 100000;
 constexpr int TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
 
@@ -29,12 +29,12 @@ void TimeToken::init()
     if (m_updater) return;
 
     m_updater = new QTimer;
-    m_current = ZeroStorageCaptchaCrypto::random(TIME_TOKEN_SIZE);
+    m_current = ZeroStorageCaptchaCrypto::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
     m_updater->setInterval(TIMER_TO_CHANGE_TOKEN_MSECS);
     QObject::connect(m_updater, &QTimer::timeout, [&]() {
         KeyHolder::removeOldToken(m_prev);
         m_prev = m_current;
-        m_current = ZeroStorageCaptchaCrypto::random(TIME_TOKEN_SIZE);
+        m_current = ZeroStorageCaptchaCrypto::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
     });
     m_updater->start();
 }
@@ -56,11 +56,11 @@ QString KeyHolder::captchaSecretLine(const QString &captchaAnswer, bool prevTime
         }
     }
 
-    QString hashedAnswer = ZeroStorageCaptchaCrypto::hash((m_caseSensitive ? captchaAnswer : captchaAnswer.toUpper()) +
-                                                          (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken()) );
+    QString stringToSign = (m_caseSensitive ? captchaAnswer : captchaAnswer.toUpper()) +
+                           (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken());
 
     uint8_t signature[SIGSIZE];
-    sign(reinterpret_cast<const uint8_t *>(hashedAnswer.toStdString().c_str()), static_cast<size_t>(hashedAnswer.size()), signature, m_key);
+    sign(reinterpret_cast<const uint8_t *>(stringToSign.toStdString().c_str()), static_cast<size_t>(stringToSign.size()), signature, m_key);
 
     QByteArray rawResultArray;
     for(int i = 0; i < SIGSIZE; ++i)
@@ -144,26 +144,6 @@ void KeyHolder::warningLog()
         "  Token cache is full (" + QString::number(m_maximalSizeOfUsedMap) + "). Service temporary unavailable.\n"
         "  You can increase maximal cache size via ZeroStorageCaptchaCrypto::KeyHolder::setMaxSizeOfUsedTokensCache(size_t)\n"
         "</warning>";
-}
-
-QString hash(const QString &str)
-{
-    QVector<uint8_t> in;
-    for(auto c: str)
-    {
-        in.push_back(static_cast<unsigned char>(c.toLatin1()));
-    }
-
-    QVector<uint8_t> out(SHA256_DIGEST_LENGTH);
-    SHA256(in.data(), static_cast<size_t>(in.size()), out.data());
-
-    QByteArray rawResult;
-    for (auto b: out)
-    {
-        rawResult.push_back(static_cast<char>(b));
-    }
-
-    return rawResult.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
 }
 
 QByteArray random(int length, bool onlyNumbers)

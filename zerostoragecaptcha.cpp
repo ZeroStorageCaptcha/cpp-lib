@@ -60,7 +60,7 @@ ZeroStorageCaptcha::ZeroStorageCaptcha()
 
     m_padding = 5;
 
-    setDifficulty(3);
+    setDifficulty(2);
     m_captchaText = "NOTSET";
 
     qsrand(static_cast<uint>(QTime::currentTime().msec())); // randomize
@@ -183,66 +183,58 @@ void ZeroStorageCaptcha::setSinDeform(qreal hAmplitude, qreal hFrequency, qreal 
 
 void ZeroStorageCaptcha::setDifficulty(int val)
 {
-    if (val < 0 or val > 5)
+    std::random_device rd;
+    std::uniform_int_distribution<int> dist (1,3);
+    short variant = dist(rd);
+
+    if (val < 0 or val > 2)
     {
-        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "Min difficulty is 0, maximal is 5";
+        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "Min difficulty is 0, maximal is 2";
     }
 
     if (val < 1)
     {
         m_drawLines = false;
-        m_drawEllipses = false;
         m_drawNoise = false;
-        setSinDeform(10, 10, 5, 20);
+        m_drawEllipses = true;
+        m_ellipseCount = 1;
+        m_ellipseMinRadius = 10;
+        m_ellipseMaxRadius = 40;
+        switch (variant) {
+        case 0:
+            setSinDeform(2, 5, 5, 15);
+            break;
+        case 1:
+            setSinDeform(5, 7, 7, 15);
+            break;
+        default:
+            setSinDeform(2, 1, 1, 10);
+            break;
+        }
     }
     else if (val == 1)
     {
         m_drawLines = true;
-        m_lineWidth = 3;
-        m_lineCount = 5;
-        m_drawEllipses = false;
-        m_drawNoise = false;
-        setSinDeform(10, 15, 5, 20);
-    }
-    else if (val == 2)
-    {
-        m_drawLines = true;
         m_lineWidth = 2;
-        m_lineCount = 5;
-        m_drawEllipses = true;
-        m_ellipseCount = 1;
-        m_ellipseMinRadius = 20;
-        m_ellipseMaxRadius = 40;
-        m_drawNoise = false;
-        setSinDeform(10, 15, 5, 15);
-    }
-    else if (val == 3)
-    {
-        m_drawLines = true;
-        m_lineWidth = 2;
-        m_lineCount = 3;
-        m_drawEllipses = true;
-        m_ellipseCount = 1;
-        m_ellipseMinRadius = 20;
-        m_ellipseMaxRadius = 50;
-        m_drawNoise = true;
-        m_noiseCount = 100;
-        m_noisePointSize = 3;
-        setSinDeform(8, 13, 5, 15);
-    }
-    else if (val == 4)
-    {
-        m_drawLines = true;
-        m_lineWidth = 3;
-        m_lineCount = 5;
+        m_lineCount = 10;
         m_drawEllipses = true;
         m_ellipseCount = 2;
         m_ellipseMinRadius = 20;
-        m_ellipseMaxRadius = 40;
+        m_ellipseMaxRadius = 30;
         m_drawNoise = true;
-        m_noiseCount = 100;
+        m_noiseCount = 300;
         m_noisePointSize = 3;
-        setSinDeform(8, 13, 5, 15);
+        switch (variant) {
+        case 0:
+            setSinDeform(2, 5, 5, 25);
+            break;
+        case 1:
+            setSinDeform(6, 8, 8, 25);
+            break;
+        default:
+            setSinDeform(3, 6, 6, 15);
+            break;
+        }
     }
     else
     {
@@ -251,12 +243,12 @@ void ZeroStorageCaptcha::setDifficulty(int val)
         m_lineCount = 7;
         m_drawEllipses = true;
         m_ellipseCount = 1;
-        m_ellipseMinRadius = 20;
-        m_ellipseMaxRadius = 40;
+        m_ellipseMinRadius = 50;
+        m_ellipseMaxRadius = 70;
         m_drawNoise = true;
-        m_noiseCount = 200;
+        m_noiseCount = 100;
         m_noisePointSize = 3;
-        setSinDeform(8, 10, 5, 10);
+        setSinDeform(2, 5, 5, 15);
     }
 }
 
