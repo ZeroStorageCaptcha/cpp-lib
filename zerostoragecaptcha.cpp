@@ -297,11 +297,11 @@ void TimeToken::init()
     m_updater->start();
 }
 
-std::atomic<size_t> IdCounter::counter = 0;
+std::atomic<size_t> IdCounter::m_counter = 0;
 
 size_t IdCounter::get()
 {
-    size_t value = ++counter;
+    size_t value = ++m_counter;
     if (value == 0)
     {
         value++;

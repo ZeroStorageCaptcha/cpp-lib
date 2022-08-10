@@ -137,7 +137,7 @@ public:
     static size_t get();
 
 private:
-    static std::atomic<size_t> counter;
+    static std::atomic<size_t> m_counter;
 };
 
 class TokenManager
