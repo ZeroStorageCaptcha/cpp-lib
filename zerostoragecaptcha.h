@@ -1,5 +1,7 @@
-// 2022 (c) GPLv3, acetone at i2pmail.org
+// GPLv3 (c) 2022, acetone
 // Zero Storage Captcha
+
+// PNG generation based on:
 
 /*
 * Copyright (c) 2014 Omkar Kanase
@@ -23,43 +25,27 @@
 #ifndef ZEROSTORAGECAPTCHA_H
 #define ZEROSTORAGECAPTCHA_H
 
-#include "zerostoragecaptchacrypto.h"
-
 #include <QFont>
 #include <QImage>
-
-class ZeroStorageCaptchaContainer
-{
-public:
-    ZeroStorageCaptchaContainer(const QByteArray& pic, const QString& token, const QString& answer) :
-        m_picture(pic),
-        m_token(token),
-        m_answer(answer)
-    {}
-
-    const QByteArray& picture() const { return m_picture; }
-    const QString& token() const { return m_token; }
-    const QString& answer() const { return m_answer; }
-
-private:
-    QByteArray m_picture;
-    QString m_token;
-    QString m_answer;
-};
+#include <QString>
+#include <QTimer>
+#include <QMutex>
+#include <QSet>
+#include <array>
+#include <map> // becouse QMap.size() is int instead size_t
 
 class ZeroStorageCaptcha
 {
 public:
     ZeroStorageCaptcha();
     static bool validate(const QString& answer, const QString& token);
-    static ZeroStorageCaptchaContainer getCaptcha(int length = 5, int difficulty = 3);
     static void setOnlyNumbersMode(bool enabled = false) { m_onlyNumbers = enabled; }
 
-    QString captchaText() const   { return m_captchaText; }
-    QString captchaToken() const;
-    QByteArray captchaPngByteArray() const;
+    QString answer() const        { return m_captchaText; }
+    QString token() const;
+    QByteArray picture() const;
 
-    QImage captchaImage() const   { return m_captchaImage; }
+    QImage qimage() const         { return m_captchaImage; }
     QFont font() const            { return m_font; }
     QColor fontColor() const      { return m_fontColor; }
     QColor backColor() const      { return m_backColor; }
@@ -118,6 +104,64 @@ private:
     int m_ellipseMinRadius;
     int m_ellipseMaxRadius;
     int m_noisePointSize;
+
+    mutable QString m_token;
 };
+
+///////////////////////////////////
+
+namespace ZeroStorageCaptchaService {
+
+QByteArray random(int length, bool onlyNumbers = false);
+
+class TimeToken
+{
+public:
+    TimeToken() = delete;
+
+    static void init();
+    static const QString currentToken() { return m_current; }
+    static const QString prevToken()    { return m_prev; }
+
+private:
+    static QTimer* m_updater;
+    static QString m_current;
+    static QString m_prev;
+};
+
+class IdCounter
+{
+public:
+    IdCounter() = delete;
+
+    static size_t get();
+
+private:
+    static std::atomic<size_t> counter;
+};
+
+class TokenManager
+{
+public:
+    TokenManager() = delete;
+
+    static QString get(const QString& captchaAnswer, size_t id = 0, bool prevTimeToken = false);
+    static bool validateAnswer(const QString& answer, const QString& token);
+    static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
+    static void setMaxSizeOfUsedTokensCache(uint64_t size) { m_maximalSizeOfUsedMap = size; }
+
+    friend TimeToken;
+
+private:
+    static void limitWarningLog();
+    static void removeToken(const QString& oldPrevToken);
+    static QMutex m_usedTokensMtx;
+    static std::map<QString, QSet<quint64>> m_usedTokens;
+    static size_t m_maximalSizeOfUsedMap;
+    static bool m_caseSensitive;
+    static QString m_key;
+};
+
+} // namespace
 
 #endif // ZEROSTORAGECAPTCHA_H 

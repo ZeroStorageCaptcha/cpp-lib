@@ -17,10 +17,12 @@ int main(int argc, char *argv[])
 
     ZeroStorageCaptcha captcha;
     captcha.generateText();
-    qInfo() << captcha.captchaToken();
-    qInfo() << captcha.captchaText();
-    qInfo() << captcha.captchaPngByteArray().toBase64();
-    qInfo() << "Validation:" << ZeroStorageCaptcha::validate(captcha.captchaText(), captcha.captchaToken());
+    captcha.updateCaptcha();
+    qInfo() << captcha.token();
+    qInfo() << captcha.answer();
+    qInfo() << captcha.picture().toBase64();
+    qInfo() << "Validation 1:" << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
+    qInfo() << "Validation 2:" << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
 
     return a.exec();
 }

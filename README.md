@@ -2,9 +2,7 @@
 
 Offline captcha without any file system or database storage.
 
-Dependencies: Qt5 and OpenSSL.
-
-![Cover](https://raw.githubusercontent.com/ZeroStorageCaptcha/cpp-lib/main/pics/cover.png)
+Dependencies: Qt5.
 
 ## Inspiration
 
@@ -23,8 +21,8 @@ When generating a captcha, the user receives a picture and a token.
 The token is a cryptographic key to verify the correctness of the answer. It is created based on:
 
 1) Captcha answer
-2) Hash SHA256
-3) Session signing key X25519
+2) Hash MD5
+3) Session unique string
 4) Time marker
 
 The time marker (time token) changes every one and a half minutes, due to which the same answer after 

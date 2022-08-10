@@ -15,14 +15,18 @@ int main(int argc, char *argv[])
     // "Environment=QT_QPA_PLATFORM=offscreen" in systemd service ([Service] section)
     QApplication a(argc, argv);
 
-    ZeroStorageCaptchaCrypto::KeyHolder::setCaseSensitive(true);
-    auto captcha = ZeroStorageCaptcha::getCaptcha();
+    ZeroStorageCaptchaService::TokenManager::setCaseSensitive(true);
+    ZeroStorageCaptcha captcha;
+    captcha.setDifficulty(0);
+    captcha.generateText();
+    captcha.updateCaptcha();
     qInfo() << captcha.token() << captcha.answer();
     QFile f("captcha.png");
     if (not f.open(QIODevice::WriteOnly)) return 1;
     f.write(captcha.picture());
     f.close();
-    qInfo() << "Validation: " << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
+    qInfo() << "Validation 1: " << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
+    qInfo() << "Validation 2: " << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
 
     return a.exec();
 } 

@@ -1,5 +1,7 @@
-// 2022 (c) GPLv3, acetone at i2pmail.org
+// GPLv3 (c) 2022, acetone
 // Zero Storage Captcha
+
+// PNG generation based on:
 
 /*
 * Copyright (c) 2014 Omkar Kanase
@@ -26,13 +28,16 @@
 #include <QBuffer>
 #include <QDebug>
 #include <QPainter>
-#include <random>
+#include <QPainterPath>
+#include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QCryptographicHash>
 
 bool ZeroStorageCaptcha::m_onlyNumbers = false;
 
 ZeroStorageCaptcha::ZeroStorageCaptcha()
 {
-    if (not ZeroStorageCaptchaCrypto::TimeToken::inited()) ZeroStorageCaptchaCrypto::TimeToken::init();
+    ZeroStorageCaptchaService::TimeToken::init();
 
     m_hmod1 = 0.0;
     m_hmod2 = 0.0;
@@ -62,29 +67,23 @@ ZeroStorageCaptcha::ZeroStorageCaptcha()
 
     setDifficulty(2);
     m_captchaText = "NOTSET";
-
-    qsrand(static_cast<uint>(QTime::currentTime().msec())); // randomize
 }
 
 bool ZeroStorageCaptcha::validate(const QString &answer, const QString &token)
 {
-    return ZeroStorageCaptchaCrypto::KeyHolder::validateCaptchaAnswer(answer, token);
+    return ZeroStorageCaptchaService::TokenManager::validateAnswer(answer, token);
 }
 
-ZeroStorageCaptchaContainer ZeroStorageCaptcha::getCaptcha(int length, int difficulty)
+QString ZeroStorageCaptcha::token() const
 {
-    ZeroStorageCaptcha c;
-    c.setDifficulty(difficulty);
-    c.generateText(length);
-    return ZeroStorageCaptchaContainer (c.captchaPngByteArray(), c.captchaToken(), c.captchaText());
+    if (m_token.isEmpty())
+    {
+        m_token = ZeroStorageCaptchaService::TokenManager::get(m_captchaText);
+    }
+    return m_token;
 }
 
-QString ZeroStorageCaptcha::captchaToken() const
-{
-    return ZeroStorageCaptchaCrypto::KeyHolder::captchaSecretLine(m_captchaText);
-}
-
-QByteArray ZeroStorageCaptcha::captchaPngByteArray() const
+QByteArray ZeroStorageCaptcha::picture() const
 {
     QByteArray data;
     QBuffer buff(&data);
@@ -97,9 +96,9 @@ void ZeroStorageCaptcha::updateCaptcha()
     QPainterPath path;
     QFontMetrics fm(m_font);
 
-    path.addText(m_vmod2 + m_padding, m_hmod2 - m_padding + fm.height(), font(), captchaText());
+    path.addText(m_vmod2 + m_padding, m_hmod2 - m_padding + fm.height(), font(), answer());
 
-    qreal sinrandomness = (static_cast<qreal>(qrand()) / RAND_MAX) * 5.0;
+    qreal sinrandomness = QRandomGenerator::system()->generateDouble() * 5.0;
 
     for (int i = 0; i < path.elementCount(); ++i)
     {
@@ -126,10 +125,10 @@ void ZeroStorageCaptcha::updateCaptcha()
         painter.setPen(QPen(Qt::black, m_lineWidth));
         for (int i = 0; i < m_lineCount; i++)
         {
-            int x1 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width());
-            int y1 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height());
-            int x2 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.width());
-            int y2 = static_cast<int>((static_cast<qreal>(qrand()) / RAND_MAX) * m_captchaImage.height());
+            int x1 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.width());
+            int y1 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.height());
+            int x2 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.width());
+            int y2 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.height());
             painter.drawLine(x1, y1, x2, y2);
         }
         painter.setPen(Qt::NoPen);
@@ -139,10 +138,10 @@ void ZeroStorageCaptcha::updateCaptcha()
     {
         for (int i = 0; i < m_ellipseCount; i++)
         {
-            int x1 = static_cast<int>(m_ellipseMaxRadius / 2.0 + (static_cast<qreal>(qrand()) / RAND_MAX) * (m_captchaImage.width() - m_ellipseMaxRadius));
-            int y1 = static_cast<int>(m_ellipseMaxRadius / 2.0 + (static_cast<qreal>(qrand()) / RAND_MAX) * (m_captchaImage.height() - m_ellipseMaxRadius));
-            int rad1 = static_cast<int>(m_ellipseMinRadius + (static_cast<qreal>(qrand()) / RAND_MAX) * (m_ellipseMaxRadius - m_ellipseMinRadius));
-            int rad2 = static_cast<int>(m_ellipseMinRadius + (static_cast<qreal>(qrand()) / RAND_MAX) * (m_ellipseMaxRadius - m_ellipseMinRadius));
+            int x1 = static_cast<int>(m_ellipseMaxRadius / 2.0 + QRandomGenerator::system()->generateDouble() * (m_captchaImage.width() - m_ellipseMaxRadius));
+            int y1 = static_cast<int>(m_ellipseMaxRadius / 2.0 + QRandomGenerator::system()->generateDouble() * (m_captchaImage.height() - m_ellipseMaxRadius));
+            int rad1 = static_cast<int>(m_ellipseMinRadius + QRandomGenerator::system()->generateDouble() * (m_ellipseMaxRadius - m_ellipseMinRadius));
+            int rad2 = static_cast<int>(m_ellipseMinRadius + QRandomGenerator::system()->generateDouble() * (m_ellipseMaxRadius - m_ellipseMinRadius));
             if (backColor() == Qt::GlobalColor::black)
             {
                 painter.setBrush(fontColor());
@@ -159,8 +158,8 @@ void ZeroStorageCaptcha::updateCaptcha()
     {
         for (int i = 0; i < m_noiseCount; i++)
         {
-            int x1 = static_cast<int>(static_cast<qreal>(qrand()) / RAND_MAX * m_captchaImage.width());
-            int y1 = static_cast<int>(static_cast<qreal>(qrand()) / RAND_MAX * m_captchaImage.height());
+            int x1 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.width());
+            int y1 = static_cast<int>(QRandomGenerator::system()->generateDouble() * m_captchaImage.height());
 
             QColor col = backColor() == Qt::GlobalColor::black ? Qt::GlobalColor::white : Qt::GlobalColor::black;
 
@@ -183,9 +182,7 @@ void ZeroStorageCaptcha::setSinDeform(qreal hAmplitude, qreal hFrequency, qreal 
 
 void ZeroStorageCaptcha::setDifficulty(int val)
 {
-    std::random_device rd;
-    std::uniform_int_distribution<int> dist (1,3);
-    short variant = dist(rd);
+    short variant = QRandomGenerator::system()->bounded(1, 3);
 
     if (val < 0 or val > 2)
     {
@@ -222,8 +219,8 @@ void ZeroStorageCaptcha::setDifficulty(int val)
         m_ellipseMinRadius = 20;
         m_ellipseMaxRadius = 30;
         m_drawNoise = true;
-        m_noiseCount = 300;
-        m_noisePointSize = 3;
+        m_noiseCount = 30;
+        m_noisePointSize = 5;
         switch (variant) {
         case 0:
             setSinDeform(2, 5, 5, 25);
@@ -240,14 +237,14 @@ void ZeroStorageCaptcha::setDifficulty(int val)
     {
         m_drawLines = true;
         m_lineWidth = 4;
-        m_lineCount = 7;
+        m_lineCount = 9;
         m_drawEllipses = true;
         m_ellipseCount = 1;
         m_ellipseMinRadius = 50;
         m_ellipseMaxRadius = 70;
         m_drawNoise = true;
-        m_noiseCount = 100;
-        m_noisePointSize = 3;
+        m_noiseCount = 150;
+        m_noisePointSize = 4;
         setSinDeform(2, 5, 5, 15);
     }
 }
@@ -260,7 +257,177 @@ void ZeroStorageCaptcha::generateText(int length)
         length = 5;
     }
 
-    m_captchaText = ZeroStorageCaptchaCrypto::random(length, m_onlyNumbers);
-
-    updateCaptcha();
+    m_captchaText = ZeroStorageCaptchaService::random(length, m_onlyNumbers);
 } 
+
+//////////////////////////
+
+constexpr const int      TIME_TOKEN_SIZE = 5; // (symbols count) + secs since epoch
+constexpr const size_t   DEFAULT_SIZE_OF_USED_TOKENS_CACHE = 10000000; // 10M
+constexpr const int      TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
+constexpr const int      KEY_STRING_SIZE = 32;
+
+namespace ZeroStorageCaptchaService {
+
+QTimer*                           TimeToken::m_updater = nullptr;
+QString                           TimeToken::m_current;
+QString                           TimeToken::m_prev;
+
+size_t                            TokenManager::m_maximalSizeOfUsedMap = DEFAULT_SIZE_OF_USED_TOKENS_CACHE;
+QMutex                            TokenManager::m_usedTokensMtx;
+std::map<QString, QSet<quint64>>  TokenManager::m_usedTokens;
+bool                              TokenManager::m_caseSensitive = false;
+QString                           TokenManager::m_key = nullptr;
+
+void TimeToken::init()
+{
+    if (m_updater) return;
+
+    m_updater = new QTimer;
+    m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
+    m_updater->setInterval(TIMER_TO_CHANGE_TOKEN_MSECS);
+    QObject::connect (
+        m_updater, &QTimer::timeout,
+        [&]() {
+            TokenManager::removeToken( prevToken() );
+            m_prev = m_current;
+            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
+        }
+    );
+    m_updater->start();
+}
+
+std::atomic<size_t> IdCounter::counter = 0;
+
+size_t IdCounter::get()
+{
+    size_t value = ++counter;
+    if (value == 0)
+    {
+        value++;
+    }
+    return value;
+}
+
+QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTimeToken)
+{
+    if (m_key.isEmpty())
+    {
+        m_key = random(KEY_STRING_SIZE); // init at first call
+    }
+
+    if (id == 0)
+    {
+        id = IdCounter::get();
+    }
+
+    // ANSWER + TIME_TOKEN + ID + SESSION_KEY
+    // TIME_TOKEN - temporary marker for limiting captcha life circle
+    // ID - size_t validation key for concrete captcha
+    // SESSION_KEY - random run-time session key for unique hash value
+    const QString base = (m_caseSensitive ? captchaAnswer : captchaAnswer.toUpper()) +
+                         (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken()) +
+                         QString::number(id) + m_key;
+
+    const QByteArray hash = QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5);
+    QString b64Hash = hash.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
+    static QRegularExpression rgx_OnlyLetters("[^a-zA-Z]");
+    b64Hash.remove(rgx_OnlyLetters);
+    QString token = b64Hash + "_" + QString::number(id);
+    return token;
+}
+
+bool TokenManager::validateAnswer(const QString &answer, const QString &token)
+{
+    QString idString {token};
+    static QRegularExpression rgx_id("^.*_");
+    idString.remove (rgx_id);
+    bool idConvertingStatus = false;
+    size_t id = idString.toULongLong(&idConvertingStatus);
+    if (not idConvertingStatus or id == 0)
+    {
+        return false;
+    }
+
+    QString timeKey;
+    if (TokenManager::get(answer, id) == token)
+    {
+        timeKey = TimeToken::currentToken();
+    }
+    else if (TokenManager::get(answer, id, true) == token)
+    {
+        timeKey = TimeToken::prevToken();
+    }
+
+    if (timeKey.isEmpty())
+    {
+        return false;
+    }
+
+    QMutexLocker lock (&m_usedTokensMtx);
+    if (m_usedTokens.find(timeKey) != m_usedTokens.end())
+    {
+        if (m_usedTokens[timeKey].contains(id)) // already used
+        {
+            return false;
+        }
+    }
+
+    size_t currentUsedSize = 0;
+    for (const auto& timePoint: m_usedTokens)
+    {
+        currentUsedSize += timePoint.second.size();
+    }
+    if (currentUsedSize >= m_maximalSizeOfUsedMap)
+    {
+        limitWarningLog();
+        return false;
+    }
+
+    m_usedTokens[timeKey].insert( id );
+    return true;
+}
+
+void TokenManager::removeToken(const QString &oldPrevToken)
+{
+    QMutexLocker lock (&m_usedTokensMtx);
+    auto iter = m_usedTokens.find(oldPrevToken);
+    if (iter != m_usedTokens.end())
+    {
+        m_usedTokens.erase(iter);
+    }
+}
+
+void TokenManager::limitWarningLog()
+{
+    qInfo().noquote() <<
+        "<warning time=\"" + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")+ "\">\n"
+        "  Token cache is full (" + QString::number(m_maximalSizeOfUsedMap) + "). Service temporary unavailable.\n"
+        "  You can increase maximal cache size via ZeroStorageCaptchaService::TokenManager::setMaxSizeOfUsedTokensCache(size_t)\n"
+        "</warning>";
+}
+
+QByteArray random(int length, bool onlyNumbers)
+{
+    constexpr char randomtable[60] =
+         {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+          'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+          'k', 'l', 'm', 'n', 'k', 'p', 'q', 'r', 's', 't',
+          'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D',
+          'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+          'h', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'};
+
+    QByteArray random_value;
+
+    while(random_value.size() < length)
+    {
+        random_value += randomtable[ QRandomGenerator::system()->bounded (
+                                        onlyNumbers ? 0 : 1,
+                                        onlyNumbers ? 9 : 59
+                                     ) ];
+    }
+
+    return random_value;
+}
+
+} // namespace ZeroStorageCaptchaService
