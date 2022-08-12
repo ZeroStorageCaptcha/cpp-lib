@@ -1,4 +1,4 @@
-// GPLv3 (c) 2022, acetone
+// GPLv3 (c) acetone, 2022
 // Zero Storage Captcha
 
 // PNG generation based on:
@@ -35,7 +35,7 @@
 
 bool ZeroStorageCaptcha::m_onlyNumbers = false;
 
-ZeroStorageCaptcha::ZeroStorageCaptcha()
+void ZeroStorageCaptcha::init()
 {
     ZeroStorageCaptchaService::TimeToken::init();
 
@@ -64,14 +64,35 @@ ZeroStorageCaptcha::ZeroStorageCaptcha()
     }
 
     m_padding = 5;
+}
 
-    setDifficulty(2);
-    m_captchaText = "NOTSET";
+ZeroStorageCaptcha::ZeroStorageCaptcha()
+{
+    init();
+    setDifficulty(1);
+}
+
+ZeroStorageCaptcha::ZeroStorageCaptcha(const QString &answer, int difficulty)
+{
+    init();
+    setAnswer(answer);
+    setDifficulty(difficulty);
+    render();
 }
 
 bool ZeroStorageCaptcha::validate(const QString &answer, const QString &token)
 {
     return ZeroStorageCaptchaService::TokenManager::validateAnswer(answer, token);
+}
+
+void ZeroStorageCaptcha::setCaseSensitive(bool enabled)
+{
+    ZeroStorageCaptchaService::TokenManager::setCaseSensitive(enabled);
+}
+
+void ZeroStorageCaptcha::caseSensitive()
+{
+    ZeroStorageCaptchaService::TokenManager::caseSensitive();
 }
 
 QString ZeroStorageCaptcha::token() const
@@ -83,7 +104,7 @@ QString ZeroStorageCaptcha::token() const
     return m_token;
 }
 
-QByteArray ZeroStorageCaptcha::picture() const
+QByteArray ZeroStorageCaptcha::picturePng() const
 {
     QByteArray data;
     QBuffer buff(&data);
@@ -91,7 +112,7 @@ QByteArray ZeroStorageCaptcha::picture() const
     return data;
 }
 
-void ZeroStorageCaptcha::updateCaptcha()
+void ZeroStorageCaptcha::render()
 {
     QPainterPath path;
     QFontMetrics fm(m_font);
@@ -249,7 +270,12 @@ void ZeroStorageCaptcha::setDifficulty(int val)
     }
 }
 
-void ZeroStorageCaptcha::generateText(int length)
+void ZeroStorageCaptcha::setAnswer(const QString &answer)
+{
+    m_captchaText = answer;
+}
+
+void ZeroStorageCaptcha::generateAnswer(int length)
 {
     if (length <= 0)
     {

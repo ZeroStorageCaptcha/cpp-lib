@@ -1,4 +1,4 @@
-// GPLv3 (c) 2022, acetone
+// GPLv3 (c) acetone, 2022
 // Zero Storage Captcha
 
 // PNG generation based on:
@@ -38,12 +38,16 @@ class ZeroStorageCaptcha
 {
 public:
     ZeroStorageCaptcha();
+    ZeroStorageCaptcha(const QString& answer, int difficulty = 1);
     static bool validate(const QString& answer, const QString& token);
-    static void setOnlyNumbersMode(bool enabled = false) { m_onlyNumbers = enabled; }
+    static void setNumbersOnlyMode(bool enabled = false) { m_onlyNumbers = enabled; }
+    static bool numbersOnlyMode() { return m_onlyNumbers; }
+    static void setCaseSensitive(bool enabled = false);
+    static void caseSensitive();
 
     QString answer() const        { return m_captchaText; }
     QString token() const;
-    QByteArray picture() const;
+    QByteArray picturePng() const;
 
     QImage qimage() const         { return m_captchaImage; }
     QFont font() const            { return m_font; }
@@ -76,10 +80,12 @@ public:
     void setNoisePointSize(int arg)   { m_noisePointSize = arg; }
     void setSinDeform(qreal hAmplitude, qreal hFrequency, qreal vAmplitude, qreal vFrequency);
     void setDifficulty(int val);
-    void generateText(int length = 5);
-    void updateCaptcha();
+    void setAnswer(const QString& answer);
+    void generateAnswer(int length = 5);
+    void render();
 
 private:
+    void init();
     static bool m_onlyNumbers;
 
     qreal m_hmod1;
@@ -90,7 +96,7 @@ private:
 
     QFont m_font;
     QImage m_captchaImage;
-    QString m_captchaText;
+    QString m_captchaText = "empty";
     QColor m_fontColor;
     QColor m_backColor;
     qreal m_padding;
@@ -148,6 +154,7 @@ public:
     static QString get(const QString& captchaAnswer, size_t id = 0, bool prevTimeToken = false);
     static bool validateAnswer(const QString& answer, const QString& token);
     static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
+    static bool caseSensitive() { return m_caseSensitive; }
     static void setMaxSizeOfUsedTokensCache(uint64_t size) { m_maximalSizeOfUsedMap = size; }
 
     friend TimeToken;
