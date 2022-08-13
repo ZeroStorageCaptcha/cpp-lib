@@ -2,7 +2,7 @@
 
 Offline captcha without any file system or database storage.
 
-Dependencies: Qt5.
+Dependency: Qt5.
 
 ## Inspiration
 
@@ -43,5 +43,5 @@ The token is considered used after the first validation check. Storing captcha i
 
 To guarantee the uniqueness of captcha tokens, when generating the first captcha, creates a SESSION_KEY (random string), which takes part in creating the control hash that forms the token. For the generation of the hash is chosen MD5, as it is a productive algorithm, which is sufficiently reliable in the context of Zero Storage Captcha.
 
-Check `examples` folder to see C++ interface or if your project not in C++, 
-you can use Zero storage captcha as separate cross-platform local [service](https://github.com/ZeroStorageCaptcha/api-daemon).
+Check `examples` folder to see C++ interface or if your project not in C++, also
+you can use Zero Storage Captcha as separate cross-platform local [service](https://github.com/ZeroStorageCaptcha/api-daemon).
