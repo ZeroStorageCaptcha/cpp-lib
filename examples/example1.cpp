@@ -1,4 +1,4 @@
-// 2022 (c) GPLv3, acetone at i2pmail.org
+// GPLv3 (c) acetone, 2022
 // Zero Storage Captcha example
 
 #include "zerostoragecaptcha.h"
@@ -15,14 +15,20 @@ int main(int argc, char *argv[])
     // "Environment=QT_QPA_PLATFORM=offscreen" in systemd service ([Service] section)
     QApplication a(argc, argv);
 
-    ZeroStorageCaptchaCrypto::KeyHolder::setCaseSensitive(true);
-    auto captcha = ZeroStorageCaptcha::getCaptcha();
-    qInfo() << captcha.token() << captcha.answer();
-    QFile f("captcha.png");
-    if (not f.open(QIODevice::WriteOnly)) return 1;
-    f.write(captcha.picture());
-    f.close();
-    qInfo() << "Validation: " << ZeroStorageCaptcha::validate(captcha.answer(), captcha.token());
+    ZeroStorageCaptcha::setCaseSensitive(true);
+    ZeroStorageCaptcha::setNumbersOnlyMode(false); // false by default, just example
+
+    ZeroStorageCaptcha c;
+    c.generateAnswer(); // create captcha text
+    c.render(); // create picture
+    QFile pic("c.png");
+    if (not pic.open(QIODevice::WriteOnly)) return 1;
+    pic.write(c.picturePng());
+    pic.close();
+
+    qInfo() << c.token() << c.answer();
+    qInfo() << "Validate" << ZeroStorageCaptcha::validate (c.answer(), c.token()); // first - success
+    qInfo() << "Validate" << ZeroStorageCaptcha::validate (c.answer(), c.token()); // second - failed
 
     return a.exec();
 } 

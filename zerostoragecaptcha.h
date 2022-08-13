@@ -1,5 +1,7 @@
-// 2022 (c) GPLv3, acetone at i2pmail.org
+// GPLv3 (c) acetone, 2022
 // Zero Storage Captcha
+
+// PNG generation based on:
 
 /*
 * Copyright (c) 2014 Omkar Kanase
@@ -23,43 +25,30 @@
 #ifndef ZEROSTORAGECAPTCHA_H
 #define ZEROSTORAGECAPTCHA_H
 
-#include "zerostoragecaptchacrypto.h"
-
 #include <QFont>
 #include <QImage>
-
-class ZeroStorageCaptchaContainer
-{
-public:
-    ZeroStorageCaptchaContainer(const QByteArray& pic, const QString& token, const QString& answer) :
-        m_picture(pic),
-        m_token(token),
-        m_answer(answer)
-    {}
-
-    const QByteArray& picture() const { return m_picture; }
-    const QString& token() const { return m_token; }
-    const QString& answer() const { return m_answer; }
-
-private:
-    QByteArray m_picture;
-    QString m_token;
-    QString m_answer;
-};
+#include <QString>
+#include <QTimer>
+#include <QMutex>
+#include <QSet>
+#include <QMap>
 
 class ZeroStorageCaptcha
 {
 public:
     ZeroStorageCaptcha();
+    ZeroStorageCaptcha(const QString& answer, int difficulty = 1);
     static bool validate(const QString& answer, const QString& token);
-    static ZeroStorageCaptchaContainer getCaptcha(int length = 5, int difficulty = 3);
-    static void setOnlyNumbersMode(bool enabled = false) { m_onlyNumbers = enabled; }
+    static void setNumbersOnlyMode(bool enabled = false) { m_onlyNumbers = enabled; }
+    static bool numbersOnlyMode() { return m_onlyNumbers; }
+    static void setCaseSensitive(bool enabled = false);
+    static bool caseSensitive();
 
-    QString captchaText() const   { return m_captchaText; }
-    QString captchaToken() const;
-    QByteArray captchaPngByteArray() const;
+    QString answer() const        { return m_captchaText; }
+    QString token() const;
+    QByteArray picturePng() const;
 
-    QImage captchaImage() const   { return m_captchaImage; }
+    QImage qimage() const         { return m_captchaImage; }
     QFont font() const            { return m_font; }
     QColor fontColor() const      { return m_fontColor; }
     QColor backColor() const      { return m_backColor; }
@@ -90,10 +79,12 @@ public:
     void setNoisePointSize(int arg)   { m_noisePointSize = arg; }
     void setSinDeform(qreal hAmplitude, qreal hFrequency, qreal vAmplitude, qreal vFrequency);
     void setDifficulty(int val);
-    void generateText(int length = 5);
-    void updateCaptcha();
+    void setAnswer(const QString& answer);
+    void generateAnswer(int length = 5);
+    void render();
 
 private:
+    void init();
     static bool m_onlyNumbers;
 
     qreal m_hmod1;
@@ -104,7 +95,7 @@ private:
 
     QFont m_font;
     QImage m_captchaImage;
-    QString m_captchaText;
+    QString m_captchaText = "empty";
     QColor m_fontColor;
     QColor m_backColor;
     qreal m_padding;
@@ -118,6 +109,62 @@ private:
     int m_ellipseMinRadius;
     int m_ellipseMaxRadius;
     int m_noisePointSize;
+
+    mutable QString m_token;
 };
+
+///////////////////////////////////
+
+namespace ZeroStorageCaptchaService {
+
+QByteArray random(int length, bool onlyNumbers = false);
+
+class TimeToken
+{
+public:
+    TimeToken() = delete;
+
+    static void init();
+    static const QString currentToken() { return m_current; }
+    static const QString prevToken()    { return m_prev; }
+
+private:
+    static QTimer* m_updater;
+    static QString m_current;
+    static QString m_prev;
+};
+
+class IdCounter
+{
+public:
+    IdCounter() = delete;
+
+    static size_t get();
+
+private:
+    static std::atomic<size_t> m_counter;
+};
+
+class TokenManager
+{
+public:
+    TokenManager() = delete;
+
+    static QString get(const QString& captchaAnswer, size_t id = 0, bool prevTimeToken = false);
+    static bool validateAnswer(const QString& answer, const QString& token);
+    static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
+    static bool caseSensitive() { return m_caseSensitive; }
+
+    friend TimeToken;
+
+private:
+    static void removeAllTokensExceptPassed(const QString& current, const QString& prev);
+    static QMutex m_usedTokensMtx;
+    static QMap<QString, QSet<size_t>> m_usedTokens;
+    static bool m_caseSensitive;
+    static QString m_key;
+};
+
+} // namespace
 
 #endif // ZEROSTORAGECAPTCHA_H 
