@@ -31,8 +31,7 @@
 #include <QTimer>
 #include <QMutex>
 #include <QSet>
-#include <array>
-#include <map> // becouse QMap.size() is int instead size_t
+#include <QMap>
 
 class ZeroStorageCaptcha
 {
@@ -43,7 +42,7 @@ public:
     static void setNumbersOnlyMode(bool enabled = false) { m_onlyNumbers = enabled; }
     static bool numbersOnlyMode() { return m_onlyNumbers; }
     static void setCaseSensitive(bool enabled = false);
-    static void caseSensitive();
+    static bool caseSensitive();
 
     QString answer() const        { return m_captchaText; }
     QString token() const;
@@ -155,16 +154,13 @@ public:
     static bool validateAnswer(const QString& answer, const QString& token);
     static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
     static bool caseSensitive() { return m_caseSensitive; }
-    static void setMaxSizeOfUsedTokensCache(uint64_t size) { m_maximalSizeOfUsedMap = size; }
 
     friend TimeToken;
 
 private:
-    static void limitWarningLog();
-    static void removeToken(const QString& oldPrevToken);
+    static void removeAllTokensExceptPassed(const QString& current, const QString& prev);
     static QMutex m_usedTokensMtx;
-    static std::map<QString, QSet<quint64>> m_usedTokens;
-    static size_t m_maximalSizeOfUsedMap;
+    static QMap<QString, QSet<size_t>> m_usedTokens;
     static bool m_caseSensitive;
     static QString m_key;
 };

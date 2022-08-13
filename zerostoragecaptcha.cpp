@@ -90,9 +90,9 @@ void ZeroStorageCaptcha::setCaseSensitive(bool enabled)
     ZeroStorageCaptchaService::TokenManager::setCaseSensitive(enabled);
 }
 
-void ZeroStorageCaptcha::caseSensitive()
+bool ZeroStorageCaptcha::caseSensitive()
 {
-    ZeroStorageCaptchaService::TokenManager::caseSensitive();
+    return ZeroStorageCaptchaService::TokenManager::caseSensitive();
 }
 
 QString ZeroStorageCaptcha::token() const
@@ -288,8 +288,7 @@ void ZeroStorageCaptcha::generateAnswer(int length)
 
 //////////////////////////
 
-constexpr const int      TIME_TOKEN_SIZE = 5; // (symbols count) + secs since epoch
-constexpr const size_t   DEFAULT_SIZE_OF_USED_TOKENS_CACHE = 10000000; // 10M
+constexpr const int      TIME_TOKEN_SIZE = 5;
 constexpr const int      TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
 constexpr const int      KEY_STRING_SIZE = 32;
 
@@ -299,9 +298,8 @@ QTimer*                           TimeToken::m_updater = nullptr;
 QString                           TimeToken::m_current;
 QString                           TimeToken::m_prev;
 
-size_t                            TokenManager::m_maximalSizeOfUsedMap = DEFAULT_SIZE_OF_USED_TOKENS_CACHE;
 QMutex                            TokenManager::m_usedTokensMtx;
-std::map<QString, QSet<quint64>>  TokenManager::m_usedTokens;
+QMap<QString, QSet<quint64>>      TokenManager::m_usedTokens;
 bool                              TokenManager::m_caseSensitive = false;
 QString                           TokenManager::m_key = nullptr;
 
@@ -315,9 +313,9 @@ void TimeToken::init()
     QObject::connect (
         m_updater, &QTimer::timeout,
         [&]() {
-            TokenManager::removeToken( prevToken() );
             m_prev = m_current;
-            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
+            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE);
+            TokenManager::removeAllTokensExceptPassed( currentToken(), prevToken() );
         }
     );
     m_updater->start();
@@ -391,7 +389,7 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
     }
 
     QMutexLocker lock (&m_usedTokensMtx);
-    if (m_usedTokens.find(timeKey) != m_usedTokens.end())
+    if (m_usedTokens.contains(timeKey))
     {
         if (m_usedTokens[timeKey].contains(id)) // already used
         {
@@ -399,38 +397,28 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
         }
     }
 
-    size_t currentUsedSize = 0;
-    for (const auto& timePoint: m_usedTokens)
-    {
-        currentUsedSize += timePoint.second.size();
-    }
-    if (currentUsedSize >= m_maximalSizeOfUsedMap)
-    {
-        limitWarningLog();
-        return false;
-    }
-
     m_usedTokens[timeKey].insert( id );
     return true;
 }
 
-void TokenManager::removeToken(const QString &oldPrevToken)
+void TokenManager::removeAllTokensExceptPassed(const QString& current, const QString& prev)
 {
     QMutexLocker lock (&m_usedTokensMtx);
-    auto iter = m_usedTokens.find(oldPrevToken);
-    if (iter != m_usedTokens.end())
+
+    std::list<QMap<QString, QSet<size_t>>::iterator> toRemove;
+
+    for (auto iter = m_usedTokens.begin(); iter != m_usedTokens.end(); iter++)
+    {
+        if (iter.key() != current and iter.key() != prev)
+        {
+            toRemove.push_back(iter);
+        }
+    }
+
+    for (const auto& iter: toRemove)
     {
         m_usedTokens.erase(iter);
     }
-}
-
-void TokenManager::limitWarningLog()
-{
-    qInfo().noquote() <<
-        "<warning time=\"" + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")+ "\">\n"
-        "  Token cache is full (" + QString::number(m_maximalSizeOfUsedMap) + "). Service temporary unavailable.\n"
-        "  You can increase maximal cache size via ZeroStorageCaptchaService::TokenManager::setMaxSizeOfUsedTokensCache(size_t)\n"
-        "</warning>";
 }
 
 QByteArray random(int length, bool onlyNumbers)
