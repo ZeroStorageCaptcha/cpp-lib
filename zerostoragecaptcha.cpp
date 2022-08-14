@@ -294,14 +294,14 @@ constexpr const int KEY_STRING_SIZE = 32;
 
 namespace ZeroStorageCaptchaService {
 
-QTimer*                           TimeToken::m_updater = nullptr;
-QString                           TimeToken::m_current;
-QString                           TimeToken::m_prev;
+QTimer*                     TimeToken::m_updater = nullptr;
+QString                     TimeToken::m_current;
+QString                     TimeToken::m_prev;
 
-QMutex                            TokenManager::m_usedTokensMtx;
-QMap<QString, QSet<size_t>>       TokenManager::m_usedTokens;
-bool                              TokenManager::m_caseSensitive = false;
-QString                           TokenManager::m_key = nullptr;
+QMutex                      TokenManager::m_usedTokensMtx;
+QMap<QString, QSet<size_t>> TokenManager::m_usedTokens;
+bool                        TokenManager::m_caseSensitive = false;
+QString                     TokenManager::m_key = nullptr;
 
 void TimeToken::init()
 {
