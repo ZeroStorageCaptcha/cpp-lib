@@ -288,9 +288,9 @@ void ZeroStorageCaptcha::generateAnswer(int length)
 
 //////////////////////////
 
-constexpr const int      TIME_TOKEN_SIZE = 5;
-constexpr const int      TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
-constexpr const int      KEY_STRING_SIZE = 32;
+constexpr const int TIME_TOKEN_SIZE = 5;
+constexpr const int TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
+constexpr const int KEY_STRING_SIZE = 32;
 
 namespace ZeroStorageCaptchaService {
 
@@ -299,7 +299,7 @@ QString                           TimeToken::m_current;
 QString                           TimeToken::m_prev;
 
 QMutex                            TokenManager::m_usedTokensMtx;
-QMap<QString, QSet<quint64>>      TokenManager::m_usedTokens;
+QMap<QString, QSet<size_t>>       TokenManager::m_usedTokens;
 bool                              TokenManager::m_caseSensitive = false;
 QString                           TokenManager::m_key = nullptr;
 
