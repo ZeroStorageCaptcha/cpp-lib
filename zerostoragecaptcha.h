@@ -1,4 +1,4 @@
-// GPLv3 (c) acetone, 2022
+// GPLv3 (c) acetone, 2022-2023
 // Zero Storage Captcha
 
 // PNG generation based on:
@@ -152,6 +152,8 @@ public:
 
     static QString get(const QString& captchaAnswer, size_t id = 0, bool prevTimeToken = false);
     static bool validateAnswer(const QString& answer, const QString& token);
+    static QByteArray numberToBytes(size_t number);
+    static size_t bytesToNumber(const QByteArray& bytes);
     static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
     static bool caseSensitive() { return m_caseSensitive; }
 

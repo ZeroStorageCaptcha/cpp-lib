@@ -1,4 +1,4 @@
-// GPLv3 (c) acetone, 2022
+// GPLv3 (c) acetone, 2022-2023
 // Zero Storage Captcha
 
 // PNG generation based on:
@@ -357,7 +357,10 @@ QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTime
     QString b64Hash = hash.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
     static QRegularExpression rgx_OnlyLetters("[^a-zA-Z]");
     b64Hash.remove(rgx_OnlyLetters);
-    QString token = b64Hash + "_" + QString::number(id);
+    QString counter = numberToBytes(id).toBase64(QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals);
+    static QRegularExpression rgx_removeTrailingASymbols("A*$");
+    counter.remove(rgx_removeTrailingASymbols);
+    QString token = b64Hash + "_" + counter;
     return token;
 }
 
@@ -366,9 +369,12 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
     QString idString {token};
     static QRegularExpression rgx_id("^.*_");
     idString.remove (rgx_id);
-    bool idConvertingStatus = false;
-    size_t id = idString.toULongLong(&idConvertingStatus);
-    if (not idConvertingStatus or id == 0)
+    while (idString.length() < 11)
+    {
+        idString.push_back('A'); // restore trimmed trailing A
+    }
+    size_t id = bytesToNumber(QByteArray::fromBase64(idString.toUtf8(), QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals));
+    if (id == 0)
     {
         return false;
     }
@@ -399,6 +405,27 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
 
     m_usedTokens[timeKey].insert( id );
     return true;
+}
+
+QByteArray TokenManager::numberToBytes(size_t number)
+{
+    QByteArray bytes;
+    for (uint8_t i = 0; i < sizeof(size_t); ++i)
+    {
+        bytes.push_back(reinterpret_cast<const char*>(&number)[i]);
+    }
+    return bytes;
+}
+
+size_t TokenManager::bytesToNumber(const QByteArray &bytes)
+{
+    if (bytes.size() != sizeof(size_t))
+    {
+        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "bytes size != sizeof(size_t)";
+        return 0;
+    }
+    size_t number = *reinterpret_cast<const size_t*>(bytes.data());
+    return number;
 }
 
 void TokenManager::removeAllTokensExceptPassed(const QString& current, const QString& prev)
