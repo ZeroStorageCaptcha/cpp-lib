@@ -312,7 +312,7 @@ void TimeToken::init()
         m_updater, &QTimer::timeout,
         [&]() {
             m_prev = m_current;
-            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SECRET_SIZE);
+            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SECRET_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
             TokenManager::removeAllTokensExceptPassed( currentToken(), prevToken() );
         }
     );
