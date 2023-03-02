@@ -34,6 +34,6 @@ The system remembers the previous time token in order to ensure the correct perc
 Due to this architecture, the lifetime of each captcha ranges from 1.5 to 3 minutes, after which the verification token will always show failure.
 
 To make it impossible to use one captcha twice, the used verification captcha id gets into a special cache, where it is stored for several minutes of the life cycle of TIME_BASED_SECRET_TOKEN.
-The token is considered used after the first validation check. Storing captcha id is very cheap: the id has a weight of 8 bytes (for a 64-bit system). For example, to store a million solved captchas at one time would need less than 8 MB of RAM.
+The captcha token is considered used after the first validation check. Storing captcha id is very cheap: the id has a weight of 8 bytes (for a 64-bit system). For example, to store a million solved captchas at one time would need less than 8 MB of RAM.
 
-Check `examples` folder to see C++ interface or if your project not in C++, also you can use Zero Storage Captcha as separate cross-platform local [service](/ZeroStorageCaptcha/api-daemon).
+Check `examples` folder to see C++ interface or if your project not in C++, also you can use Zero Storage Captcha as separate cross-platform local [service](https://github.com/ZeroStorageCaptcha/api-daemon).
