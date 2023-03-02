@@ -164,7 +164,6 @@ private:
     static QMutex m_usedTokensMtx;
     static QMap<QString, QSet<size_t>> m_usedTokens;
     static bool m_caseSensitive;
-    static QString m_key;
 };
 
 } // namespace

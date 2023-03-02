@@ -288,9 +288,8 @@ void ZeroStorageCaptcha::generateAnswer(int length)
 
 //////////////////////////
 
-constexpr const int TIME_TOKEN_SIZE = 5;
+constexpr const int TIME_TOKEN_SECRET_SIZE = 10;
 constexpr const int TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
-constexpr const int KEY_STRING_SIZE = 32;
 
 namespace ZeroStorageCaptchaService {
 
@@ -301,20 +300,19 @@ QString                     TimeToken::m_prev;
 QMutex                      TokenManager::m_usedTokensMtx;
 QMap<QString, QSet<size_t>> TokenManager::m_usedTokens;
 bool                        TokenManager::m_caseSensitive = false;
-QString                     TokenManager::m_key = nullptr;
 
 void TimeToken::init()
 {
     if (m_updater) return;
 
     m_updater = new QTimer;
-    m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
+    m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SECRET_SIZE) + QString::number(QDateTime::currentSecsSinceEpoch());
     m_updater->setInterval(TIMER_TO_CHANGE_TOKEN_MSECS);
     QObject::connect (
         m_updater, &QTimer::timeout,
         [&]() {
             m_prev = m_current;
-            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SIZE);
+            m_current = ZeroStorageCaptchaService::random(TIME_TOKEN_SECRET_SIZE);
             TokenManager::removeAllTokensExceptPassed( currentToken(), prevToken() );
         }
     );
@@ -335,11 +333,6 @@ size_t IdCounter::get()
 
 QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTimeToken)
 {
-    if (m_key.isEmpty())
-    {
-        m_key = random(KEY_STRING_SIZE); // init at first call
-    }
-
     if (id == 0)
     {
         id = IdCounter::get();
@@ -351,16 +344,16 @@ QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTime
     // SESSION_KEY - random run-time session key for unique hash value
     const QString base = (m_caseSensitive ? captchaAnswer : captchaAnswer.toUpper()) +
                          (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken()) +
-                         QString::number(id) + m_key;
+                         QString::number(id);
 
     const QByteArray hash = QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5);
     QString b64Hash = hash.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
     static QRegularExpression rgx_OnlyLetters("[^a-zA-Z]");
     b64Hash.remove(rgx_OnlyLetters);
-    QString counter = numberToBytes(id).toBase64(QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals);
+    QString counterB64 = numberToBytes(id).toBase64(QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals);
     static QRegularExpression rgx_removeTrailingASymbols("A*$");
-    counter.remove(rgx_removeTrailingASymbols);
-    QString token = b64Hash + "_" + counter;
+    counterB64.remove(rgx_removeTrailingASymbols);
+    QString token = b64Hash + "_" + counterB64;
     return token;
 }
 
