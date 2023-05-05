@@ -69,7 +69,7 @@ void ZeroStorageCaptcha::init()
 ZeroStorageCaptcha::ZeroStorageCaptcha()
 {
     init();
-    setDifficulty(1);
+    setDifficulty(ZeroStorageCaptchaService::Cache::difficulty());
 }
 
 ZeroStorageCaptcha::ZeroStorageCaptcha(const QString &answer, int difficulty)
@@ -83,6 +83,41 @@ ZeroStorageCaptcha::ZeroStorageCaptcha(const QString &answer, int difficulty)
 bool ZeroStorageCaptcha::validate(const QString &answer, const QString &token)
 {
     return ZeroStorageCaptchaService::TokenManager::validateAnswer(answer, token);
+}
+
+void ZeroStorageCaptcha::setCacheMaxCapacity(qsizetype value)
+{
+    ZeroStorageCaptchaService::Cache::setMaxCapacity(value);
+}
+
+qsizetype ZeroStorageCaptcha::cacheMaxCapacity()
+{
+    return ZeroStorageCaptchaService::Cache::maxCapacity();
+}
+
+qsizetype ZeroStorageCaptcha::cacheSize()
+{
+    return ZeroStorageCaptchaService::Cache::size();
+}
+
+void ZeroStorageCaptcha::setDefaultAnswerLength(int length)
+{
+    ZeroStorageCaptchaService::Cache::setAnswerLength(length);
+}
+
+int ZeroStorageCaptcha::defaultAnswerLength()
+{
+    return ZeroStorageCaptchaService::Cache::answerLength();
+}
+
+void ZeroStorageCaptcha::setDefaultDifficulty(int difficulty)
+{
+    ZeroStorageCaptchaService::Cache::setDifficulty(difficulty);
+}
+
+int ZeroStorageCaptcha::defaultDifficulty()
+{
+    return ZeroStorageCaptchaService::Cache::difficulty();
 }
 
 void ZeroStorageCaptcha::setCaseSensitive(bool enabled)
@@ -207,7 +242,7 @@ void ZeroStorageCaptcha::setDifficulty(int val)
 
     if (val < 0 or val > 2)
     {
-        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "Min difficulty is 0, maximal is 2";
+        qDebug().noquote() << __PRETTY_FUNCTION__ << "Min difficulty is 0, maximal is 2";
     }
 
     if (val < 1)
@@ -279,7 +314,7 @@ void ZeroStorageCaptcha::generateAnswer(int length)
 {
     if (length <= 0)
     {
-        qInfo() << QString(__PRETTY_FUNCTION__) << "Invalid number of characters. Set to 5.";
+        qDebug() << __PRETTY_FUNCTION__ << "Invalid number of characters. Set to 5.";
         length = 5;
     }
 
@@ -288,8 +323,8 @@ void ZeroStorageCaptcha::generateAnswer(int length)
 
 //////////////////////////
 
-constexpr const int TIME_TOKEN_SECRET_SIZE = 10;
-constexpr const int TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
+constexpr int TIME_TOKEN_SECRET_SIZE = 10;
+constexpr int TIMER_TO_CHANGE_TOKEN_MSECS = 90000; // 1,5 min
 
 namespace ZeroStorageCaptchaService {
 
@@ -298,8 +333,14 @@ QString                     TimeToken::m_current;
 QString                     TimeToken::m_prev;
 
 QMutex                      TokenManager::m_usedTokensMtx;
-QMap<QString, QSet<size_t>> TokenManager::m_usedTokens;
+QMap<QString, QSet<IdType>> TokenManager::m_usedTokens;
 bool                        TokenManager::m_caseSensitive = false;
+
+QList<QPair<QString, QSharedPointer<ZeroStorageCaptcha>>> Cache::m_cache;
+QMutex Cache::m_cacheMtx;
+qsizetype Cache::m_capacity = 4096;
+int Cache::m_length = 5;
+int Cache::m_difficulty = 1;
 
 void TimeToken::init()
 {
@@ -319,11 +360,11 @@ void TimeToken::init()
     m_updater->start();
 }
 
-std::atomic<size_t> IdCounter::m_counter (0);
+std::atomic<IdType> IdCounter::m_counter (0);
 
-size_t IdCounter::get()
+IdType IdCounter::get()
 {
-    size_t value = ++m_counter;
+    IdType value = ++m_counter;
     if (value == 0)
     {
         value++;
@@ -331,7 +372,7 @@ size_t IdCounter::get()
     return value;
 }
 
-QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTimeToken)
+QString TokenManager::get(const QString &captchaAnswer, IdType id, bool prevTimeToken)
 {
     if (id == 0)
     {
@@ -340,7 +381,7 @@ QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTime
 
     // ANSWER + TIME_TOKEN + ID + SESSION_KEY
     // TIME_TOKEN - temporary marker for limiting captcha life circle
-    // ID - size_t validation key for concrete captcha
+    // ID - IdType (size_t) validation key for concrete captcha
     // SESSION_KEY - random run-time session key for unique hash value
     const QString base = (m_caseSensitive ? captchaAnswer : captchaAnswer.toUpper()) +
                          (prevTimeToken ? TimeToken::prevToken() : TimeToken::currentToken()) +
@@ -348,10 +389,10 @@ QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTime
 
     const QByteArray hash = QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5);
     QString b64Hash = hash.toBase64(QByteArray::Base64Option::Base64UrlEncoding);
-    static QRegularExpression rgx_OnlyLetters("[^a-zA-Z]");
+    static const QRegularExpression rgx_OnlyLetters("[^a-zA-Z]");
     b64Hash.remove(rgx_OnlyLetters);
     QString counterB64 = numberToBytes(id).toBase64(QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals);
-    static QRegularExpression rgx_removeTrailingASymbols("A*$");
+    static const QRegularExpression rgx_removeTrailingASymbols("A*$");
     counterB64.remove(rgx_removeTrailingASymbols);
     QString token = b64Hash + "_" + counterB64;
     return token;
@@ -360,13 +401,13 @@ QString TokenManager::get(const QString &captchaAnswer, size_t id, bool prevTime
 bool TokenManager::validateAnswer(const QString &answer, const QString &token)
 {
     QString idString {token};
-    static QRegularExpression rgx_id("^.*_");
+    static const QRegularExpression rgx_id("^.*_");
     idString.remove (rgx_id);
     while (idString.length() < 11)
     {
         idString.push_back('A'); // restore trimmed trailing A
     }
-    size_t id = bytesToNumber(QByteArray::fromBase64(idString.toUtf8(), QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals));
+    IdType id = bytesToNumber(QByteArray::fromBase64(idString.toUtf8(), QByteArray::Base64Option::Base64UrlEncoding | QByteArray::Base64Option::OmitTrailingEquals));
     if (id == 0)
     {
         return false;
@@ -387,6 +428,8 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
         return false;
     }
 
+    Cache::remove(token);
+
     QMutexLocker lock (&m_usedTokensMtx);
     if (m_usedTokens.contains(timeKey))
     {
@@ -400,24 +443,24 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
     return true;
 }
 
-QByteArray TokenManager::numberToBytes(size_t number)
+QByteArray TokenManager::numberToBytes(IdType number)
 {
     QByteArray bytes;
-    for (uint8_t i = 0; i < sizeof(size_t); ++i)
+    for (uint8_t i = 0; i < sizeof(IdType); ++i)
     {
         bytes.push_back(reinterpret_cast<const char*>(&number)[i]);
     }
     return bytes;
 }
 
-size_t TokenManager::bytesToNumber(const QByteArray &bytes)
+IdType TokenManager::bytesToNumber(const QByteArray &bytes)
 {
-    if (bytes.size() != sizeof(size_t))
+    if (bytes.size() != sizeof(IdType))
     {
-        qInfo().noquote() << QString(__PRETTY_FUNCTION__) << "bytes size != sizeof(size_t)";
+        qDebug().noquote() << __PRETTY_FUNCTION__ << "bytes size != sizeof(IdType)";
         return 0;
     }
-    size_t number = *reinterpret_cast<const size_t*>(bytes.data());
+    IdType number = *reinterpret_cast<const IdType*>(bytes.data());
     return number;
 }
 
@@ -425,17 +468,17 @@ void TokenManager::removeAllTokensExceptPassed(const QString& current, const QSt
 {
     QMutexLocker lock (&m_usedTokensMtx);
 
-    std::list<QMap<QString, QSet<size_t>>::iterator> toRemove;
+    std::list<QMap<QString, QSet<IdType>>::iterator> toRemove;
 
     for (auto iter = m_usedTokens.begin(); iter != m_usedTokens.end(); iter++)
     {
         if (iter.key() != current and iter.key() != prev)
         {
-            toRemove.push_back(iter);
+            toRemove.push_back(QMap<QString, QSet<IdType>>::iterator(iter));
         }
     }
 
-    for (const auto& iter: toRemove)
+    for (auto& iter: toRemove)
     {
         m_usedTokens.erase(iter);
     }
@@ -462,6 +505,65 @@ QByteArray random(int length, bool onlyNumbers)
     }
 
     return random_value;
+}
+
+void Cache::setAnswerLength(int length)
+{
+    if (length <= 0)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "Invalid number of characters. Set to 5.";
+        length = 5;
+    }
+    m_length = length;
+}
+
+QSharedPointer<ZeroStorageCaptcha> Cache::get()
+{
+    QMutexLocker lock (&m_cacheMtx);
+
+    for (auto iter = m_cache.begin(); iter != m_cache.end(); iter++)
+    {
+        if (not TimeToken::exists(iter->first))
+        {
+            iter->first = TimeToken::currentToken();
+            iter->second->dropToken();
+            return iter->second;
+        }
+    }
+
+    QSharedPointer<ZeroStorageCaptcha> captcha (new ZeroStorageCaptcha);
+    captcha->generateAnswer(answerLength());
+    captcha->render();
+
+    if (m_cache.size() < m_capacity)
+    {
+        m_cache.push_back( {TimeToken::currentToken(), captcha} );
+    }
+    else if (m_capacity > 0)
+    {
+        qDebug() << __PRETTY_FUNCTION__ << "captcha cache is full. Maybe you should increase" << maxCapacity() << "by ZeroStorageCaptcha::setCacheMaxCapacity(qsizetype)";
+    }
+
+    while (m_cache.size() > m_capacity)
+    {
+        m_cache.pop_front();
+    }
+
+    return captcha;
+}
+
+void Cache::remove(const QString &token)
+{
+    QMutexLocker lock (&m_cacheMtx);
+
+    for (auto iter = m_cache.begin(); iter != m_cache.end(); iter++)
+    {
+        if (iter->second->token() == token)
+        {
+            m_cache.erase(iter);
+            break;
+        }
+    }
 }
 
 } // namespace ZeroStorageCaptchaService

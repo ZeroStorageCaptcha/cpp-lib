@@ -32,13 +32,105 @@
 #include <QMutex>
 #include <QSet>
 #include <QMap>
+#include <QSharedPointer>
+
+class ZeroStorageCaptcha;
+
+namespace ZeroStorageCaptchaService {
+
+using IdType = size_t;
+
+QByteArray random(int length, bool onlyNumbers = false);
+
+class TimeToken
+{
+public:
+    TimeToken() = delete;
+
+    static void init();
+    static const QString currentToken() { return m_current; }
+    static const QString prevToken()    { return m_prev; }
+    static bool exists(const QString& some) { return m_current == some or m_prev == some; }
+
+private:
+    static QTimer* m_updater;
+    static QString m_current;
+    static QString m_prev;
+};
+
+class IdCounter
+{
+public:
+    IdCounter() = delete;
+
+    static IdType get();
+
+private:
+    static std::atomic<IdType> m_counter;
+};
+
+class TokenManager
+{
+    friend TimeToken;
+
+public:
+    TokenManager() = delete;
+
+    static QString get(const QString& captchaAnswer, IdType id = 0, bool prevTimeToken = false);
+    static bool validateAnswer(const QString& answer, const QString& token);
+    static QByteArray numberToBytes(IdType number);
+    static IdType bytesToNumber(const QByteArray& bytes);
+    static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
+    static bool caseSensitive() { return m_caseSensitive; }
+
+private:
+    static void removeAllTokensExceptPassed(const QString& current, const QString& prev);
+    static QMutex m_usedTokensMtx;
+    static QMap<QString, QSet<IdType>> m_usedTokens;
+    static bool m_caseSensitive;
+};
+
+class Cache
+{
+    friend TokenManager;
+public:
+    static void setAnswerLength(int length = 5);
+    static int answerLength() { return m_length; }
+    static void setDifficulty(int difficulty) { m_difficulty = difficulty; }
+    static int difficulty() { return m_difficulty; }
+    static void setMaxCapacity(qsizetype value) { m_capacity = value; }
+    static qsizetype maxCapacity() { return m_capacity; }
+    static qsizetype size() { return m_cache.size(); }
+    static QSharedPointer<ZeroStorageCaptcha> get();
+
+private:
+    static void remove(const QString& token);
+
+    static QList< QPair<QString /* time token */, QSharedPointer<ZeroStorageCaptcha>> > m_cache;
+    static QMutex m_cacheMtx;
+    static qsizetype m_capacity;
+    static int m_length;
+    static int m_difficulty;
+};
+
+} // namespace
+
+///////////////////////////////
 
 class ZeroStorageCaptcha
 {
+    friend ZeroStorageCaptchaService::Cache;
 public:
     ZeroStorageCaptcha();
-    ZeroStorageCaptcha(const QString& answer, int difficulty = 1);
+    ZeroStorageCaptcha(const QString& answer, int difficulty = ZeroStorageCaptchaService::Cache::difficulty());
     static bool validate(const QString& answer, const QString& token);
+    static void setCacheMaxCapacity(qsizetype value);
+    static qsizetype cacheMaxCapacity();
+    static qsizetype cacheSize();
+    static void setDefaultAnswerLength(int length);
+    static int defaultAnswerLength();
+    static void setDefaultDifficulty(int difficulty);
+    static int defaultDifficulty();
     static void setNumbersOnlyMode(bool enabled = false) { m_onlyNumbers = enabled; }
     static bool numbersOnlyMode() { return m_onlyNumbers; }
     static void setCaseSensitive(bool enabled = false);
@@ -84,6 +176,7 @@ public:
     void render();
 
 private:
+    void dropToken() { m_token.clear(); } // for Cache
     void init();
     static bool m_onlyNumbers;
 
@@ -112,60 +205,5 @@ private:
 
     mutable QString m_token;
 };
-
-///////////////////////////////////
-
-namespace ZeroStorageCaptchaService {
-
-QByteArray random(int length, bool onlyNumbers = false);
-
-class TimeToken
-{
-public:
-    TimeToken() = delete;
-
-    static void init();
-    static const QString currentToken() { return m_current; }
-    static const QString prevToken()    { return m_prev; }
-
-private:
-    static QTimer* m_updater;
-    static QString m_current;
-    static QString m_prev;
-};
-
-class IdCounter
-{
-public:
-    IdCounter() = delete;
-
-    static size_t get();
-
-private:
-    static std::atomic<size_t> m_counter;
-};
-
-class TokenManager
-{
-public:
-    TokenManager() = delete;
-
-    static QString get(const QString& captchaAnswer, size_t id = 0, bool prevTimeToken = false);
-    static bool validateAnswer(const QString& answer, const QString& token);
-    static QByteArray numberToBytes(size_t number);
-    static size_t bytesToNumber(const QByteArray& bytes);
-    static void setCaseSensitive(bool enabled = false) { m_caseSensitive = enabled; }
-    static bool caseSensitive() { return m_caseSensitive; }
-
-    friend TimeToken;
-
-private:
-    static void removeAllTokensExceptPassed(const QString& current, const QString& prev);
-    static QMutex m_usedTokensMtx;
-    static QMap<QString, QSet<size_t>> m_usedTokens;
-    static bool m_caseSensitive;
-};
-
-} // namespace
 
 #endif // ZEROSTORAGECAPTCHA_H 
