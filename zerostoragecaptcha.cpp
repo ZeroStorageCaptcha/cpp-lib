@@ -80,6 +80,11 @@ ZeroStorageCaptcha::ZeroStorageCaptcha(const QString &answer, int difficulty)
     render();
 }
 
+QSharedPointer<ZeroStorageCaptcha> ZeroStorageCaptcha::cached()
+{
+    return ZeroStorageCaptchaService::Cache::get();
+}
+
 bool ZeroStorageCaptcha::validate(const QString &answer, const QString &token)
 {
     return ZeroStorageCaptchaService::TokenManager::validateAnswer(answer, token);

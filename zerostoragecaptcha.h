@@ -119,10 +119,11 @@ private:
 
 class ZeroStorageCaptcha
 {
-    friend ZeroStorageCaptchaService::Cache;
+    friend ZeroStorageCaptchaService::Cache; // for dropToken()
 public:
     ZeroStorageCaptcha();
     ZeroStorageCaptcha(const QString& answer, int difficulty = ZeroStorageCaptchaService::Cache::difficulty());
+    static QSharedPointer<ZeroStorageCaptcha> cached();
     static bool validate(const QString& answer, const QString& token);
     static void setCacheMaxCapacity(qsizetype value);
     static qsizetype cacheMaxCapacity();

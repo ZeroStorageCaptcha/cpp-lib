@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     qInfo() << "Default difficulty:" << ZeroStorageCaptcha::defaultDifficulty();
     qInfo() << "Default answer length:" << ZeroStorageCaptcha::defaultAnswerLength();
 
-    auto c = ZeroStorageCaptchaService::Cache::get();
+    auto c = ZeroStorageCaptcha::cached();
     QFile pic("c.png");
     if (not pic.open(QIODevice::WriteOnly)) return 1;
     pic.write(c->picturePng());
