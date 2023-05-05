@@ -433,8 +433,6 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
         return false;
     }
 
-    Cache::remove(token);
-
     QMutexLocker lock (&m_usedTokensMtx);
     if (m_usedTokens.contains(timeKey))
     {
@@ -445,6 +443,8 @@ bool TokenManager::validateAnswer(const QString &answer, const QString &token)
     }
 
     m_usedTokens[timeKey].insert( id );
+    Cache::remove(token);
+
     return true;
 }
 
